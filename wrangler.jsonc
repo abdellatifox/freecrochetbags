@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "crochet-corner",
+  "name": "freecrochetbags",
   "main": "./dist/_worker.js/index.js",
   "compatibility_date": "2025-08-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,24 +9,28 @@
     "directory": "./dist"
   },
   "observability": { "enabled": true },
+  "workers_dev": true,
 
-  // 1) npx wrangler d1 create crochet-db   -> paste the database_id below
+  "routes": [
+    { "pattern": "freecrochetbags.com", "custom_domain": true },
+    { "pattern": "www.freecrochetbags.com", "custom_domain": true }
+  ],
+
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "crochet-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_name": "freecrochetbags-db",
+      "database_id": "552a8f77-afd1-459c-9d9c-af8fb26ab022",
       "migrations_dir": "migrations"
     }
   ],
 
-  // 2) npx wrangler kv namespace create CACHE   -> paste the id below
   "kv_namespaces": [
     {
       "binding": "CACHE",
-      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+      "id": "fd97bb4310e941aeaf96cd120e5a0efc"
     }
   ]
 
-  // 3) npx wrangler secret put ADMIN_TOKEN   (never commit it)
+  // npx wrangler secret put ADMIN_TOKEN   (never commit it)
 }

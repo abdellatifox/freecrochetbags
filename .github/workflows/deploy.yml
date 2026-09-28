@@ -19,8 +19,7 @@ jobs:
         with:
           node-version: 22
 
-      # Switch to `npm ci` once package-lock.json is committed.
-      - run: npm install
+      - run: npm ci
 
       - run: npm run build
 
@@ -29,7 +28,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 migrations apply crochet-db --remote
+          command: d1 migrations apply freecrochetbags-db --remote
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v3

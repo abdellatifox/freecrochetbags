@@ -1,5 +1,5 @@
 {
-  "name": "crochet-corner",
+  "name": "freecrochetbags",
   "type": "module",
   "version": "1.0.0",
   "private": true,
@@ -8,10 +8,10 @@
     "build": "astro build",
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
-    "db:migrate:local": "wrangler d1 migrations apply crochet-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply crochet-db --remote",
-    "db:seed:local": "wrangler d1 execute crochet-db --local --file=./seed/seed.sql",
-    "db:seed:remote": "wrangler d1 execute crochet-db --remote --file=./seed/seed.sql",
+    "db:migrate:local": "wrangler d1 migrations apply freecrochetbags-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply freecrochetbags-db --remote",
+    "db:seed:local": "wrangler d1 execute freecrochetbags-db --local --file=./seed/seed.sql",
+    "db:seed:remote": "wrangler d1 execute freecrochetbags-db --remote --file=./seed/seed.sql",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
