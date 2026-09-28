@@ -1,0 +1,188 @@
+---
+import { renderPattern } from '../../lib/content';
+import Base from '../../layouts/Base.astro';
+import PatternCard from '../../components/PatternCard.astro';
+import { getCategory, SITE } from '../../lib/site';
+import { getPattern, getRelated, formatDate } from '../../lib/db';
+
+const { env } = Astro.locals.runtime;
+const pattern = await getPattern(env, Astro.params.slug ?? '');
+if (!pattern) return Astro.rewrite('/404');
+
+const category = getCategory(pattern.category);
+const related = await getRelated(env, pattern.category, pattern.slug);
+const { html, toc, faqs } = renderPattern(pattern.content);
+const materials = pattern.materials.split('\n').map((m) => m.trim()).filter(Boolean);
+const facts = [
+  ['Skill level', pattern.difficulty],
+  ['Yarn weight', pattern.yarn_weight],
+  ['Hook size', pattern.hook_size],
+  ['Time', pattern.time_needed],
+].filter(([, v]) => v);
+
+const base = Astro.site ?? Astro.url;
+const abs = (path: string) => new URL(path, base).href;
+const url = abs(Astro.url.pathname);
+const isoDate = (d: string) => new Date(d.replace(' ', 'T') + 'Z').toISOString();
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Article',
+      '@id': `${url}#article`,
+      headline: pattern.title,
+      description: pattern.excerpt,
+      image: abs(pattern.image || '/og.svg'),
+      url,
+      mainEntityOfPage: url,
+      datePublished: isoDate(pattern.published_at),
+      dateModified: isoDate(pattern.updated_at),
+      author: { '@type': 'Person', name: SITE.author, url: abs('/about') },
+      publisher: { '@type': 'Organization', name: SITE.name, logo: { '@type': 'ImageObject', url: abs('/favicon.svg') } },
+      articleSection: category?.name,
+      keywords: ['crochet pattern', 'free crochet pattern', 'crochet for beginners', category?.name.toLowerCase()].filter(Boolean).join(', '),
+    },
+    {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
+        { '@type': 'ListItem', position: 2, name: category?.name ?? pattern.category, item: abs(`/category/${pattern.category}`) },
+        { '@type': 'ListItem', position: 3, name: pattern.title, item: url },
+      ],
+    },
+    ...(faqs.length
+      ? [
+          {
+            '@type': 'FAQPage',
+            mainEntity: faqs.map((f) => ({
+              '@type': 'Question',
+              name: f.question,
+              acceptedAnswer: { '@type': 'Answer', text: f.answer },
+            })),
+          },
+        ]
+      : []),
+  ],
+};
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
+---
+
+<Base title={pattern.title} description={pattern.excerpt} image={pattern.image} jsonLd={jsonLd} ogType="article">
+  <article class="wrap section">
+    <nav class="crumbs no-print" aria-label="Breadcrumb">
+      <a href="/">Home</a> <span aria-hidden="true">/</span>
+      <a href={`/category/${pattern.category}`}>{category?.name ?? pattern.category}</a>
+      <span aria-hidden="true">/</span> <span aria-current="page">{pattern.title}</span>
+    </nav>
+
+    <header class="head">
+      <div class="head__copy">
+        <span class="pill">{category?.name ?? pattern.category}</span>
+        <h1>{pattern.title}</h1>
+        <p class="lead">{pattern.excerpt}</p>
+        <p class="date">Published {formatDate(pattern.published_at)} · by {SITE.author}</p>
+
+        <dl class="facts">
+          {facts.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
+        </dl>
+
+        <div class="actions no-print">
+          <a class="btn" href="#pattern">Jump to pattern</a>
+          <button class="btn btn--ghost" type="button" id="print-btn">Print pattern</button>
+        </div>
+      </div>
+      <figure class="head__media">
+        <img src={pattern.image || '/images/patterns/placeholder.svg'} alt={pattern.image_alt || pattern.title} width="600" height="750" loading="eager" />
+      </figure>
+    </header>
+
+    <div class="body">
+      <div class="side">
+        {
+          materials.length > 0 && (
+            <aside class="box materials" aria-labelledby="materials-title">
+              <h2 id="materials-title">You'll need</h2>
+              <ul>{materials.map((m) => <li>{m}</li>)}</ul>
+            </aside>
+          )
+        }
+        {
+          toc.length > 2 && (
+            <nav class="box toc no-print" aria-labelledby="toc-title">
+              <h2 id="toc-title">In this pattern</h2>
+              <ol>{toc.map((t) => <li><a href={`#${t.id}`}>{t.text}</a></li>)}</ol>
+            </nav>
+          )
+        }
+      </div>
+      <div class="prose" id="pattern" set:html={html} />
+    </div>
+  </article>
+
+  {
+    related.length > 0 && (
+      <section class="wrap related no-print" aria-labelledby="related-title">
+        <p class="squiggle" aria-hidden="true">∿ ∿ ∿</p>
+        <h2 id="related-title" class="related__title">
+          More <em>{category?.name.toLowerCase()}</em> to try
+        </h2>
+        <div class="grid">
+          {related.map((p) => (
+            <PatternCard pattern={p} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+</Base>
+
+<script>
+  document.getElementById('print-btn')?.addEventListener('click', () => window.print());
+</script>
+
+<style>
+  .crumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 32px; }
+  .crumbs a { color: var(--muted); }
+  .head {
+    display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(24px, 5vw, 64px); align-items: center;
+    background: var(--surface); border-radius: var(--radius-lg); padding: clamp(24px, 5vw, 56px);
+  }
+  .head h1 { margin-top: 16px; font-size: clamp(1.9rem, 4vw, 2.7rem); }
+  .lead { font-size: 1.12rem; }
+  .date { font-size: 0.85rem; color: var(--muted); }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 24px 0; }
+  .facts div { background: var(--card); border-radius: var(--radius-sm); padding: 12px 14px; }
+  .facts dt { font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .facts dd { margin: 0; font-weight: 700; color: var(--ink); }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+  .head__media { margin: 0; }
+  .head__media img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); }
+
+  .body { display: grid; grid-template-columns: 280px 1fr; gap: clamp(28px, 5vw, 64px); margin-top: clamp(40px, 6vw, 72px); align-items: start; }
+  .side { position: sticky; top: 24px; display: grid; gap: 16px; max-height: calc(100vh - 48px); overflow: auto; }
+  .box { background: var(--surface-2); border-radius: var(--radius); padding: 22px 24px; }
+  .box h2 { font-size: 1.1rem; }
+  .box ul, .box ol { margin: 0; padding-left: 1.2em; font-size: 0.95rem; }
+  .box li { margin-bottom: 6px; }
+  .box li::marker { color: var(--accent); }
+  .toc { background: var(--card); border: 1px solid var(--line); }
+  .toc a { color: var(--ink-soft); text-decoration: none; }
+  .toc a:hover { color: var(--accent-strong); text-decoration: underline; }
+  .prose :global(h2), .prose :global(h3) { scroll-margin-top: 24px; }
+
+  .related { padding-top: var(--space-section); border-top: 1px solid var(--line); }
+  .related__title { text-align: center; margin-bottom: 40px; }
+
+  @media (max-width: 860px) {
+    .head, .body { grid-template-columns: 1fr; }
+    .head__media { order: -1; max-width: 420px; }
+    .side { position: static; max-height: none; }
+  }
+  @media print {
+    .head { background: none; padding: 0; grid-template-columns: 1fr 200px; }
+    .materials { background: none; border: 1px solid #ccc; }
+    .body { grid-template-columns: 1fr; }
+  }
+</style>

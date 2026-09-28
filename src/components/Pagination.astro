@@ -1,0 +1,32 @@
+---
+interface Props {
+  page: number;
+  pages: number;
+  base: string; // e.g. "/patterns" or "/category/blankets"
+  q?: string;
+}
+const { page, pages, base, q } = Astro.props;
+
+function href(p: number) {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (p > 1) params.set('page', String(p));
+  const s = params.toString();
+  return s ? `${base}?${s}` : base;
+}
+---
+
+{
+  pages > 1 && (
+    <nav class="pager" aria-label="Pagination">
+      {page > 1 ? <a class="btn btn--ghost" href={href(page - 1)} rel="prev">← Newer</a> : <span />}
+      <span class="pager__info">Page {page} of {pages}</span>
+      {page < pages ? <a class="btn btn--ghost" href={href(page + 1)} rel="next">Older →</a> : <span />}
+    </nav>
+  )
+}
+
+<style>
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 56px; }
+  .pager__info { color: var(--muted); font-size: 0.9rem; }
+</style>

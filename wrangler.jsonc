@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crochet-corner",
+  "main": "./dist/_worker.js/index.js",
+  "compatibility_date": "2025-08-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "observability": { "enabled": true },
+
+  // 1) npx wrangler d1 create crochet-db   -> paste the database_id below
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crochet-db",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // 2) npx wrangler kv namespace create CACHE   -> paste the id below
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "REPLACE_WITH_KV_NAMESPACE_ID"
+    }
+  ]
+
+  // 3) npx wrangler secret put ADMIN_TOKEN   (never commit it)
+}

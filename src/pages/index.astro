@@ -1,0 +1,196 @@
+---
+import Base from '../layouts/Base.astro';
+import PatternCard from '../components/PatternCard.astro';
+import { CATEGORIES, SITE } from '../lib/site';
+import { listPatterns, getCategoryCounts } from '../lib/db';
+
+const { env } = Astro.locals.runtime;
+const [feed, counts] = await Promise.all([listPatterns(env, { perPage: 9 }), getCategoryCounts(env)]);
+const heroImages = feed.items.slice(0, 3);
+const subscribed = Astro.url.searchParams.get('subscribed');
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+---
+
+<Base>
+  <!-- Hero: keeps the reference layout (copy left, photo collage right) -->
+  <section class="wrap hero-wrap">
+    <div class="hero">
+      <div class="hero__copy">
+        <p class="eyebrow">{SITE.name}</p>
+        <h1>Free, calm crochet patterns for <em>every</em> season.</h1>
+        <p class="hero__lead">
+          A quiet little library of beginner-friendly crochet patterns, written in plain language and tested with care.
+          Pick up your hook and let's make something lovely together.
+        </p>
+        <dl class="stats">
+          <div><dt>Free patterns</dt><dd>{feed.total}</dd></div>
+          <div><dt>Categories</dt><dd>{CATEGORIES.length}</dd></div>
+          <div><dt>Seasons</dt><dd>4</dd></div>
+        </dl>
+        <form class="search" action="/patterns" method="get" role="search">
+          <label for="hero-q" class="visually-hidden">Search patterns</label>
+          <input id="hero-q" name="q" type="search" placeholder="Search beanies, totes, blankets…" />
+          <button class="btn" type="submit">Search</button>
+        </form>
+      </div>
+
+      {
+        heroImages.length > 0 && (
+          <div class="collage" aria-hidden="true">
+            {heroImages.map((p, i) => (
+              <figure class={`polaroid polaroid--${i + 1}`}>
+                <img src={p.image} alt="" width="600" height="750" loading="eager" />
+              </figure>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- Categories: simple, quiet tiles -->
+  <section class="wrap section cats-section" aria-labelledby="cats-title">
+    <div class="section-head">
+      <p class="eyebrow">Browse</p>
+      <h2 id="cats-title">Find your next <em>make</em></h2>
+    </div>
+    <ul class="cats">
+      {
+        CATEGORIES.map((c) => (
+          <li>
+            <a href={`/category/${c.slug}`} class="cat">
+              <span class="cat__name">{c.name}</span>
+              <span class="cat__meta">
+                {c.tagline} · {counts[c.slug] ?? 0}
+              </span>
+              <span class="cat__arrow" aria-hidden="true">→</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- Home feed: one calm grid, newest first, no carousels or numbered badges -->
+  <section class="wrap section feed" aria-labelledby="feed-title">
+    <p class="squiggle" aria-hidden="true">∿ ∿ ∿</p>
+    <div class="section-head">
+      <h2 id="feed-title">Fresh off the <em>hook</em></h2>
+      <p>The newest patterns, one gentle scroll at a time.</p>
+    </div>
+
+    {
+      feed.items.length > 0 ? (
+        <div class="grid">
+          {feed.items.map((p, i) => (
+            <PatternCard pattern={p} eager={i < 3} />
+          ))}
+        </div>
+      ) : (
+        <p class="empty">No patterns yet — add your first one from the admin page.</p>
+      )
+    }
+
+    {
+      feed.total > feed.items.length && (
+        <p class="more">
+          <a class="btn btn--ghost" href="/patterns?page=2">See more patterns</a>
+        </p>
+      )
+    }
+  </section>
+
+  <!-- About + newsletter -->
+  <section class="wrap section">
+    <div class="hello">
+      <div>
+        <p class="eyebrow">Hello there</p>
+        <h2>I'm {SITE.author}, and this is my little <em>crochet corner</em>.</h2>
+        <p>
+          Every pattern here is free, written without confusing jargon, and made with yarn you can find anywhere. Whether
+          you're picking up a hook for the very first time or you've been crocheting for years, there's something calm
+          waiting for you.
+        </p>
+        <a class="link-underline" href="/about">Read my story</a>
+      </div>
+
+      <div class="newsletter" id="newsletter">
+        <h3>New patterns in your inbox</h3>
+        <p>One friendly email when something new is ready. No spam, ever.</p>
+        {subscribed === '1' && <p class="notice" role="status">Thank you! You're on the list. ♡</p>}
+        {subscribed === '0' && <p class="notice notice--err" role="alert">Please enter a valid email address.</p>}
+        <form action="/api/subscribe" method="post">
+          <label for="nl-email" class="visually-hidden">Email address</label>
+          <input id="nl-email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+          <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <button class="btn" type="submit">Subscribe</button>
+        </form>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero-wrap { padding-top: clamp(20px, 4vw, 44px); }
+  .hero {
+    display: grid; grid-template-columns: 1.05fr 1fr; gap: clamp(24px, 5vw, 64px); align-items: center;
+    background: var(--surface); border-radius: var(--radius-lg); padding: clamp(28px, 6vw, 72px);
+  }
+  .hero__lead { max-width: 46ch; }
+  .stats { display: flex; gap: clamp(16px, 4vw, 40px); margin: 28px 0; }
+  .stats div { border-left: 2px solid var(--clay); padding-left: 12px; display: flex; flex-direction: column-reverse; }
+  .stats dt { font-size: 0.66rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  .stats dd { margin: 0; font-family: var(--font-head); font-weight: 800; font-size: 1.5rem; color: var(--ink); line-height: 1.2; }
+  .search {
+    display: flex; gap: 6px; padding: 6px; border-radius: 999px; background: var(--card);
+    border: 1px solid var(--line); max-width: 460px;
+  }
+  .search input { border: 0; background: transparent; padding: 10px 14px; min-width: 0; }
+  .search input:focus { outline: none; }
+  .search:focus-within { border-color: var(--accent); }
+
+  .collage { position: relative; aspect-ratio: 1 / 1; max-width: 460px; justify-self: center; width: 100%; }
+  .collage::before {
+    content: ''; position: absolute; inset: 18% 10% 4%; border-radius: 50%; background: var(--surface-2);
+  }
+  .polaroid {
+    position: absolute; margin: 0; background: #fff; padding: 8px 8px 22px; border-radius: 4px;
+    box-shadow: 0 10px 28px rgb(51 51 42 / 0.14); width: 48%;
+  }
+  .polaroid img { aspect-ratio: 4 / 5; object-fit: cover; width: 100%; border-radius: 2px; }
+  .polaroid--1 { left: 2%; top: 4%; transform: rotate(-5deg); }
+  .polaroid--2 { right: 2%; top: 12%; transform: rotate(4deg); }
+  .polaroid--3 { left: 24%; bottom: 0; transform: rotate(-1deg); }
+  .polaroid::after { /* washi tape */
+    content: ''; position: absolute; top: -10px; left: 50%; width: 56px; height: 18px;
+    transform: translateX(-50%) rotate(-4deg); background: rgb(200 150 79 / 0.45);
+  }
+
+  .cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); }
+  .cat {
+    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 12px;
+    padding: 18px 20px; border-radius: var(--radius); background: var(--card); border: 1px solid var(--line);
+    text-decoration: none; transition: border-color 0.2s, background 0.2s;
+  }
+  .cat:hover { border-color: var(--accent); background: var(--surface-2); }
+  .cat__name { font-family: var(--font-head); font-weight: 800; color: var(--ink); font-size: 1.05rem; }
+  .cat__meta { grid-column: 1; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+  .cat__arrow { grid-row: 1 / span 2; grid-column: 2; color: var(--accent); font-size: 1.2rem; }
+
+  .feed { padding-top: 0; }
+  .more { text-align: center; margin: 48px 0 0; }
+  .empty { text-align: center; color: var(--muted); }
+
+  .hello {
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(28px, 5vw, 64px); align-items: center;
+    border-top: 1px solid var(--line); padding-top: var(--space-section);
+  }
+  .newsletter { background: var(--surface-2); border-radius: var(--radius-lg); padding: clamp(24px, 4vw, 40px); }
+  .newsletter form { display: grid; gap: 10px; }
+
+  @media (max-width: 860px) {
+    .hero, .hello { grid-template-columns: 1fr; }
+    .collage { max-width: 380px; }
+  }
+</style>

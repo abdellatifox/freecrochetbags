@@ -1,0 +1,62 @@
+---
+import Base from '../../layouts/Base.astro';
+import PatternCard from '../../components/PatternCard.astro';
+import Pagination from '../../components/Pagination.astro';
+import { CATEGORIES } from '../../lib/site';
+import { listPatterns } from '../../lib/db';
+
+const { env } = Astro.locals.runtime;
+const q = (Astro.url.searchParams.get('q') ?? '').trim().slice(0, 80);
+const page = Number.parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1;
+const result = await listPatterns(env, { q, page });
+---
+
+<Base title={q ? `Search: ${q}` : 'All free patterns'} noindex={Boolean(q)}>
+  <section class="wrap section">
+    <div class="section-head">
+      <p class="eyebrow">Library</p>
+      <h1>{q ? <>Results for <em>“{q}”</em></> : <>All free <em>patterns</em></>}</h1>
+      <p>{result.total} {result.total === 1 ? 'pattern' : 'patterns'}</p>
+    </div>
+
+    <form id="search" class="search" action="/patterns" method="get" role="search">
+      <label for="q" class="visually-hidden">Search patterns</label>
+      <input id="q" name="q" type="search" value={q} placeholder="Search beanies, totes, blankets…" />
+      <button class="btn" type="submit">Search</button>
+    </form>
+
+    <ul class="chips" aria-label="Categories">
+      <li><a href="/patterns" class="chip" aria-current={!q ? 'page' : undefined}>All</a></li>
+      {CATEGORIES.map((c) => <li><a class="chip" href={`/category/${c.slug}`}>{c.name}</a></li>)}
+    </ul>
+
+    {
+      result.items.length > 0 ? (
+        <div class="grid">
+          {result.items.map((p, i) => (
+            <PatternCard pattern={p} eager={i < 3} />
+          ))}
+        </div>
+      ) : (
+        <p class="empty">Nothing found. Try another word, like “beanie” or “blanket”.</p>
+      )
+    }
+
+    <Pagination page={result.page} pages={result.pages} base="/patterns" q={q} />
+  </section>
+</Base>
+
+<style>
+  .search { display: flex; gap: 6px; max-width: 520px; margin: 0 auto 24px; padding: 6px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
+  .search input { border: 0; background: transparent; padding: 10px 14px; min-width: 0; }
+  .search input:focus { outline: none; }
+  .search:focus-within { border-color: var(--accent); }
+  .chips { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0; margin: 0 0 48px; }
+  .chip {
+    display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line);
+    text-decoration: none; color: var(--ink-soft); font-size: 0.9rem; font-weight: 600; background: var(--card);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--ink); }
+  .chip[aria-current='page'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .empty { text-align: center; color: var(--muted); }
+</style>

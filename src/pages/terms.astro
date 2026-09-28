@@ -1,0 +1,93 @@
+---
+import TextPage from '../components/TextPage.astro';
+import { SITE } from '../lib/site';
+export const prerender = true;
+
+const updated = 'September 28, 2026';
+const domain = 'freecrochetbags.com';
+---
+
+<TextPage title="Terms of Service" eyebrow="Legal" description={`The terms for using ${SITE.name} and its free crochet patterns.`}>
+  <p><em>Last updated: {updated}</em></p>
+  <p>
+    Welcome to {SITE.name}! These terms apply to your use of <strong>{domain}</strong> (the "site"). By using the site,
+    you agree to these terms. If you don't agree, please don't use the site.
+  </p>
+
+  <h2>Using our patterns</h2>
+  <p>All patterns on {SITE.name} are free for personal use. Here's what that means:</p>
+  <ul>
+    <li><strong>You may</strong> make items from our patterns for yourself, as gifts, or for charity.</li>
+    <li>
+      <strong>You may</strong> sell finished items you make from our patterns, such as at craft fairs or online shops.
+      A credit and link back to the original pattern is always appreciated.
+    </li>
+    <li>
+      <strong>You may</strong> share a link to a pattern, or one photo with a link back to the pattern page.
+    </li>
+    <li>
+      <strong>You may not</strong> copy, republish, translate, sell or distribute the written patterns, photos or other
+      content, in whole or in part, including as PDFs, on other websites or on social media, without our written
+      permission.
+    </li>
+    <li><strong>You may not</strong> claim our patterns or photos as your own.</li>
+  </ul>
+
+  <h2>Intellectual property</h2>
+  <p>
+    Unless stated otherwise, all content on the site, including patterns, text, photos, graphics, the logo and the
+    {SITE.name} name, belongs to {SITE.name} and is protected by copyright and other laws. These terms do not give you any
+    ownership of our content.
+  </p>
+
+  <h2>Newsletter and contact form</h2>
+  <p>
+    When you subscribe or send us a message, please give accurate information and don't send spam, abusive or illegal
+    content. We may ignore or delete messages that break these rules. How we handle your information is explained in our
+    <a href="/privacy">Privacy Policy</a>.
+  </p>
+
+  <h2>Acceptable use</h2>
+  <p>When using the site, you agree not to:</p>
+  <ul>
+    <li>break any law or anyone else's rights;</li>
+    <li>try to hack, overload, scrape at scale or otherwise disrupt the site;</li>
+    <li>use automated tools to copy our content.</li>
+  </ul>
+
+  <h2>Safety</h2>
+  <p>
+    Crochet involves sharp tools and small parts. Please use common sense. Items made for babies and small children
+    should be made with care: secure every part, avoid small pieces that could come loose, and always supervise use. You
+    are responsible for choosing suitable materials and for the safety of the items you make.
+  </p>
+
+  <h2>No warranty</h2>
+  <p>
+    We write and test our patterns carefully, but results depend on your yarn, tension and skill, and mistakes can
+    happen. The site and all patterns are provided "as is", without warranties of any kind. We don't promise that the
+    site will always be available or free of errors. If you find a mistake in a pattern, please
+    <a href="/contact">let us know</a>.
+  </p>
+
+  <h2>Limitation of liability</h2>
+  <p>
+    To the fullest extent allowed by law, {SITE.name} is not liable for any indirect or incidental loss or damage arising
+    from your use of the site or its patterns, including wasted materials or time.
+  </p>
+
+  <h2>Links to other websites</h2>
+  <p>
+    The site may link to other websites, such as yarn shops. We don't control them and are not responsible for their
+    content, products or policies.
+  </p>
+
+  <h2>Changes to these terms</h2>
+  <p>
+    We may update these terms from time to time. When we do, we will change the "Last updated" date above. If you keep
+    using the site after a change, you accept the updated terms.
+  </p>
+
+  <h2>Contact us</h2>
+  <p>Questions about these terms? Reach us through the <a href="/contact">contact page</a>.</p>
+</TextPage>

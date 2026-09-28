@@ -1,0 +1,16 @@
+---
+import TextPage from '../components/TextPage.astro';
+import { SITE } from '../lib/site';
+export const prerender = true;
+---
+
+<TextPage title="Disclaimer" eyebrow="Legal">
+  <p>
+    All patterns on {SITE.name} are free for personal use. You're welcome to sell items you make from them — a link back
+    to the original pattern is always appreciated. Please don't republish or sell the written patterns or photos themselves.
+  </p>
+  <p>
+    Items made for babies and small children should be made with care: avoid small parts that could come loose and
+    always supervise use.
+  </p>
+</TextPage>

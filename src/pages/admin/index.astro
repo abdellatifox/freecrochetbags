@@ -1,0 +1,310 @@
+---
+import Base from '../../layouts/Base.astro';
+import { CATEGORIES, DIFFICULTIES } from '../../lib/site';
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+Astro.response.headers.set('X-Robots-Tag', 'noindex');
+---
+
+<Base title="Admin" noindex>
+  <section class="wrap section admin">
+    <h1>Pattern <em>admin</em></h1>
+
+    <form id="login" class="login">
+      <div class="field">
+        <label for="token">Admin token</label>
+        <input id="token" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn" type="submit">Unlock</button>
+      <p class="hint">The token is the <code>ADMIN_TOKEN</code> secret set with Wrangler. It's kept only for this browser tab.</p>
+    </form>
+
+    <div id="panel" hidden>
+      <p id="status" class="notice" role="status" hidden></p>
+
+      <div class="cols">
+        <div>
+          <div class="list-head">
+            <h2>Patterns</h2>
+            <button class="btn btn--ghost" id="new-btn" type="button">+ New</button>
+          </div>
+          <ul id="list" class="list"></ul>
+        </div>
+
+        <form id="editor" class="editor">
+          <h2 id="editor-title">New pattern</h2>
+          <div class="row">
+            <div class="field"><label for="f-title">Title</label><input id="f-title" name="title" required /></div>
+            <div class="field"><label for="f-slug">Slug</label><input id="f-slug" name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" /></div>
+          </div>
+          <div class="field">
+            <label for="f-excerpt">Short description (Google meta description)</label>
+            <input id="f-excerpt" name="excerpt" maxlength="400" aria-describedby="excerpt-count" />
+            <small id="excerpt-count" class="count">Aim for 120–160 characters and include the main keyword.</small>
+          </div>
+          <div class="row">
+            <div class="field">
+              <label for="f-category">Category</label>
+              <select id="f-category" name="category">
+                {CATEGORIES.map((c) => <option value={c.slug}>{c.name}</option>)}
+              </select>
+            </div>
+            <div class="field">
+              <label for="f-difficulty">Difficulty</label>
+              <select id="f-difficulty" name="difficulty">
+                {DIFFICULTIES.map((d) => <option>{d}</option>)}
+              </select>
+            </div>
+          </div>
+          <div class="row">
+            <div class="field"><label for="f-image">Image URL</label><input id="f-image" name="image" placeholder="/images/patterns/… or https://…" /></div>
+            <div class="field"><label for="f-image_alt">Image alt text</label><input id="f-image_alt" name="image_alt" /></div>
+          </div>
+          <div class="row row--3">
+            <div class="field"><label for="f-yarn_weight">Yarn weight</label><input id="f-yarn_weight" name="yarn_weight" /></div>
+            <div class="field"><label for="f-hook_size">Hook size</label><input id="f-hook_size" name="hook_size" /></div>
+            <div class="field"><label for="f-time_needed">Time</label><input id="f-time_needed" name="time_needed" /></div>
+          </div>
+          <div class="field"><label for="f-materials">Materials (one per line)</label><textarea id="f-materials" name="materials" rows="4"></textarea></div>
+          <div class="field">
+            <div class="label-row">
+              <label for="f-content">Pattern (Markdown)</label>
+              <button type="button" class="linkish" id="template-btn">Insert beginner template</button>
+            </div>
+            <textarea id="f-content" name="content" rows="16"></textarea>
+          </div>
+          <label class="check"><input type="checkbox" id="f-published" name="published" checked /> Published</label>
+          <div class="editor-actions">
+            <button class="btn" type="submit">Save</button>
+            <button class="btn btn--ghost" type="button" id="delete-btn" hidden>Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  const API = '/api/admin/patterns';
+  const KEY = 'admin-token';
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
+
+  const login = $<HTMLFormElement>('#login');
+  const panel = $<HTMLDivElement>('#panel');
+  const list = $<HTMLUListElement>('#list');
+  const editor = $<HTMLFormElement>('#editor');
+  const status = $<HTMLParagraphElement>('#status');
+  const deleteBtn = $<HTMLButtonElement>('#delete-btn');
+  const fields = ['title', 'slug', 'excerpt', 'category', 'difficulty', 'image', 'image_alt', 'yarn_weight', 'hook_size', 'time_needed', 'materials', 'content'];
+
+  let token = '';
+  try { token = sessionStorage.getItem(KEY) ?? ''; } catch {}
+  let editing: string | null = null;
+
+  function say(msg: string, err = false) {
+    status.textContent = msg;
+    status.classList.toggle('notice--err', err);
+    status.hidden = false;
+  }
+
+  async function api(path: string, init: RequestInit = {}) {
+    const res = await fetch(path, {
+      ...init,
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', ...(init.headers ?? {}) },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error ?? res.statusText), { status: res.status });
+    return data;
+  }
+
+  async function refresh() {
+    const rows: Array<{ slug: string; title: string; category: string; published: number }> = await api(API);
+    list.replaceChildren(
+      ...rows.map((r) => {
+        const li = document.createElement('li');
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = r.title + (r.published ? '' : ' (draft)');
+        b.addEventListener('click', () => load(r.slug));
+        const small = document.createElement('small');
+        small.textContent = r.category;
+        li.append(b, small);
+        return li;
+      }),
+    );
+  }
+
+  function reset() {
+    editing = null;
+    editor.reset();
+    $('#editor-title').textContent = 'New pattern';
+    deleteBtn.hidden = true;
+  }
+
+  async function load(slug: string) {
+    const p = await api(`${API}?slug=${encodeURIComponent(slug)}`);
+    fields.forEach((f) => ((editor.elements.namedItem(f) as HTMLInputElement).value = p[f] ?? ''));
+    ($('#f-published') as HTMLInputElement).checked = Boolean(p.published);
+    updateCount();
+    editing = slug;
+    $('#editor-title').textContent = 'Edit pattern';
+    deleteBtn.hidden = false;
+    editor.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function unlock() {
+    try {
+      await refresh();
+      try { sessionStorage.setItem(KEY, token); } catch {}
+      login.hidden = true;
+      panel.hidden = false;
+    } catch (e: any) {
+      if (e.status === 401) alert('Wrong token.');
+      else alert(e.message);
+    }
+  }
+
+  login.addEventListener('submit', (e) => {
+    e.preventDefault();
+    token = ($('#token') as HTMLInputElement).value;
+    unlock();
+  });
+
+  // Auto-fill the slug from the title for new patterns.
+  $('#f-title').addEventListener('input', (e) => {
+    if (editing) return;
+    ($('#f-slug') as HTMLInputElement).value = (e.target as HTMLInputElement).value
+      .toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  });
+
+  editor.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body: Record<string, unknown> = Object.fromEntries(fields.map((f) => [f, (editor.elements.namedItem(f) as HTMLInputElement).value]));
+    body.published = ($('#f-published') as HTMLInputElement).checked;
+    try {
+      if (editing && editing !== body.slug) {
+        if (!confirm('The slug changed — this will create a new URL and remove the old one. Continue?')) return;
+        await api(`${API}?slug=${encodeURIComponent(editing)}`, { method: 'DELETE' });
+      }
+      await api(API, { method: 'POST', body: JSON.stringify(body) });
+      say(`Saved “${body.title}”.`);
+      editing = String(body.slug);
+      deleteBtn.hidden = false;
+      await refresh();
+    } catch (err: any) {
+      say(err.message, true);
+    }
+  });
+
+  deleteBtn.addEventListener('click', async () => {
+    if (!editing || !confirm(`Delete “${editing}” permanently?`)) return;
+    try {
+      await api(`${API}?slug=${encodeURIComponent(editing)}`, { method: 'DELETE' });
+      say('Deleted.');
+      reset();
+      await refresh();
+    } catch (err: any) {
+      say(err.message, true);
+    }
+  });
+
+  $('#new-btn').addEventListener('click', reset);
+
+  // Live character count for the meta description.
+  const excerpt = $<HTMLInputElement>('#f-excerpt');
+  const count = $('#excerpt-count');
+  const updateCount = () => {
+    const n = excerpt.value.length;
+    count.textContent = `${n} characters — ${n < 120 ? 'a bit short' : n > 160 ? 'too long for Google' : 'good length'}. Include the main keyword.`;
+    count.dataset.ok = String(n >= 120 && n <= 160);
+  };
+  excerpt.addEventListener('input', updateCount);
+
+  // Beginner-friendly, SEO-ready article skeleton ("## FAQ" + "### question" becomes FAQ structured data).
+  const TEMPLATE = `Intro: 2–3 friendly sentences. Use the **main keyword** (e.g. "easy crochet ___ pattern") in the first sentence and say who it's for.
+
+## Why You'll Love This ___ Pattern
+
+- Benefit 1
+- Benefit 2
+- Benefit 3
+
+## Crochet Abbreviations (US Terms)
+
+- **ch** – chain: yarn over and pull through the loop on your hook.
+- **sc** – single crochet: explain it in one plain sentence.
+
+## Size and Gauge
+
+- **Finished size:**
+- **Gauge:** (explain in one line why gauge matters)
+
+## Step-by-Step Instructions
+
+### Step 1
+
+Clear instructions. End each round/row with the stitch count in bold, e.g. **(24 sc)**.
+
+> **What's happening?** Explain the "why" in simple words.
+
+### Step 2
+
+## Beginner Tips
+
+- Tip 1
+- Tip 2
+
+## Common Mistakes (and How to Fix Them)
+
+- **Problem.** Fix.
+
+## FAQ
+
+### Question people search for?
+
+Short, direct answer (2–3 sentences).
+
+### Another question?
+
+Answer.
+
+Link to more: [free crochet ___ patterns](/category/___) and one related pattern.`;
+
+  $('#template-btn').addEventListener('click', () => {
+    const content = $<HTMLTextAreaElement>('#f-content');
+    if (content.value.trim() && !confirm('Replace the current content with the template?')) return;
+    content.value = TEMPLATE;
+    content.focus();
+  });
+
+  if (token) unlock();
+</script>
+
+<style>
+  .login { max-width: 420px; }
+  .hint { font-size: 0.85rem; color: var(--muted); margin-top: 12px; }
+  .cols { display: grid; grid-template-columns: 300px 1fr; gap: 40px; align-items: start; }
+  .list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .list-head h2 { margin: 0; font-size: 1.3rem; }
+  .list { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+  .list li { display: grid; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; }
+  .list button { all: unset; cursor: pointer; font-weight: 700; color: var(--ink); }
+  .list button:hover { color: var(--accent-strong); }
+  .list small { color: var(--muted); }
+  .editor { background: var(--surface); border-radius: var(--radius); padding: 24px; }
+  .editor h2 { font-size: 1.3rem; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .row--3 { grid-template-columns: repeat(3, 1fr); }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--ink); margin-bottom: 18px; }
+  .check input { width: auto; }
+  .editor-actions { display: flex; gap: 10px; }
+  .count { color: var(--muted); font-size: 0.82rem; }
+  .count[data-ok='true'] { color: var(--accent-strong); }
+  .count[data-ok='false'] { color: var(--clay); }
+  .label-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .linkish { all: unset; cursor: pointer; font-size: 0.85rem; font-weight: 700; color: var(--accent-strong); text-decoration: underline; }
+  #f-content { font-family: ui-monospace, monospace; font-size: 0.9rem; }
+  @media (max-width: 860px) {
+    .cols, .row, .row--3 { grid-template-columns: 1fr; }
+  }
+</style>

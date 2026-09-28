@@ -1,0 +1,75 @@
+---
+import Base from '../../layouts/Base.astro';
+import PatternCard from '../../components/PatternCard.astro';
+import Pagination from '../../components/Pagination.astro';
+import { CATEGORIES, getCategory } from '../../lib/site';
+import { listPatterns } from '../../lib/db';
+
+const category = getCategory(Astro.params.slug ?? '');
+if (!category) return Astro.rewrite('/404');
+
+const { env } = Astro.locals.runtime;
+const page = Number.parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1;
+const result = await listPatterns(env, { category: category.slug, page });
+
+Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+---
+
+<Base
+  title={`Free ${category.name} crochet patterns`}
+  description={`Free, beginner-friendly ${category.name.toLowerCase()} crochet patterns — ${category.tagline.toLowerCase()}.`}
+>
+  <section class="wrap section">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/patterns">Patterns</a>
+      <span aria-hidden="true">/</span> <span aria-current="page">{category.name}</span>
+    </nav>
+
+    <div class="section-head">
+      <span class="pill">{category.name}</span>
+      <h1 class="title">{category.tagline}, <em>made with care</em></h1>
+      <p>{result.total} free {result.total === 1 ? 'pattern' : 'patterns'}</p>
+    </div>
+
+    <ul class="chips" aria-label="Categories">
+      <li><a href="/patterns" class="chip">All</a></li>
+      {
+        CATEGORIES.map((c) => (
+          <li>
+            <a class="chip" href={`/category/${c.slug}`} aria-current={c.slug === category.slug ? 'page' : undefined}>
+              {c.name}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    {
+      result.items.length > 0 ? (
+        <div class="grid">
+          {result.items.map((p, i) => (
+            <PatternCard pattern={p} eager={i < 3} />
+          ))}
+        </div>
+      ) : (
+        <p class="empty">No patterns in this category yet — check back soon.</p>
+      )
+    }
+
+    <Pagination page={result.page} pages={result.pages} base={`/category/${category.slug}`} />
+  </section>
+</Base>
+
+<style>
+  .crumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 32px; }
+  .crumbs a { color: var(--muted); }
+  .title { margin-top: 16px; }
+  .chips { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0; margin: 0 0 48px; }
+  .chip {
+    display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line);
+    text-decoration: none; color: var(--ink-soft); font-size: 0.9rem; font-weight: 600; background: var(--card);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--ink); }
+  .chip[aria-current='page'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .empty { text-align: center; color: var(--muted); }
+</style>

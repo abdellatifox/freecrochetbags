@@ -1,0 +1,116 @@
+---
+import Logo from './Logo.astro';
+import { CATEGORIES } from '../lib/site';
+
+const path = Astro.url.pathname;
+const isActive = (href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+---
+
+<header class="site-header">
+  <div class="topbar" aria-hidden="true"></div>
+  <div class="wrap bar">
+    <Logo />
+
+    <nav aria-label="Main">
+      <ul class="menu">
+        <li><a href="/" aria-current={isActive('/') ? 'page' : undefined}>Home</a></li>
+        <li class="has-sub">
+          <details>
+            <summary class={isActive('/patterns') || isActive('/category') ? 'current' : ''}>Patterns</summary>
+            <ul class="sub">
+              <li><a href="/patterns">All patterns</a></li>
+              {CATEGORIES.map((c) => <li><a href={`/category/${c.slug}`}>{c.name}</a></li>)}
+            </ul>
+          </details>
+        </li>
+        <li><a href="/about" aria-current={isActive('/about') ? 'page' : undefined}>About</a></li>
+        <li><a href="/contact" aria-current={isActive('/contact') ? 'page' : undefined}>Contact</a></li>
+        <li>
+          <a href="/patterns#search" class="icon-link" aria-label="Search patterns">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <button type="button" class="theme-toggle" aria-label="Dark mode" aria-pressed="false">
+      <svg class="i-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
+      <svg class="i-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+    </button>
+  </div>
+</header>
+
+<script>
+  // Close the Patterns dropdown when clicking elsewhere or pressing Escape.
+  const details = document.querySelector<HTMLDetailsElement>('.has-sub details');
+  document.addEventListener('click', (e) => {
+    if (details?.open && !details.contains(e.target as Node)) details.open = false;
+  });
+
+  // Light/dark toggle — the choice is remembered per visitor.
+  const toggle = document.querySelector<HTMLButtonElement>('.theme-toggle');
+  const root = document.documentElement;
+  const apply = (dark: boolean) => {
+    if (dark) root.dataset.theme = 'dark';
+    else delete root.dataset.theme;
+    document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')!.content = dark ? '#1f1e19' : '#ffffff';
+    toggle?.setAttribute('aria-pressed', String(dark));
+  };
+  apply(root.dataset.theme === 'dark');
+  toggle?.addEventListener('click', () => {
+    const dark = root.dataset.theme !== 'dark';
+    apply(dark);
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch {}
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && details?.open) {
+      details.open = false;
+      details.querySelector('summary')?.focus();
+    }
+  });
+</script>
+
+<style>
+  .site-header { background: var(--bg); border-bottom: 1px solid var(--line); position: relative; z-index: 20; }
+  .topbar { height: 5px; background: linear-gradient(90deg, var(--accent), var(--clay)); }
+  .bar { display: flex; align-items: center; gap: 16px; min-height: 76px; flex-wrap: wrap; padding-block: 8px; }
+  .bar nav { margin-left: auto; }
+  .menu { list-style: none; display: flex; align-items: center; gap: clamp(8px, 2.5vw, 30px); margin: 0; padding: 0; }
+  .menu > li > a, summary {
+    font-weight: 700; font-size: 0.95rem; color: var(--ink); text-decoration: none;
+    padding: 10px 2px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  }
+  .menu a[aria-current='page'], summary.current { color: var(--accent-strong); }
+  .menu a:hover, summary:hover { color: var(--accent-strong); }
+  summary { list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: ''; width: 6px; height: 6px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-2px); margin-left: 4px; }
+  .has-sub { position: relative; }
+  .sub {
+    position: absolute; right: 0; top: calc(100% + 6px); min-width: 210px; list-style: none; margin: 0; padding: 8px;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow);
+  }
+  .sub a { display: block; padding: 8px 12px; border-radius: 8px; text-decoration: none; color: var(--ink-soft); font-size: 0.95rem; }
+  .sub a:hover { background: var(--surface); color: var(--ink); }
+  .icon-link { color: var(--ink); }
+  .icon-link svg { flex-shrink: 0; }
+  .theme-toggle {
+    display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; cursor: pointer; flex-shrink: 0;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink);
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .theme-toggle:hover { border-color: var(--accent); color: var(--accent-strong); }
+  .theme-toggle .i-sun { display: none; }
+  :global([data-theme='dark']) .theme-toggle .i-sun { display: block; }
+  :global([data-theme='dark']) .theme-toggle .i-moon { display: none; }
+  @media (max-width: 560px) {
+    /* Phone: logo + theme button on the first row, menu on its own row. */
+    .bar { gap: 4px 12px; padding-block: 10px; }
+    .theme-toggle { margin-left: auto; order: 2; }
+    .bar nav { order: 3; flex-basis: 100%; margin-left: 0; }
+    .menu { gap: 4px 16px; flex-wrap: wrap; justify-content: space-between; }
+    .menu > li > a, summary { font-size: 0.9rem; }
+    .sub { right: auto; left: 50%; transform: translateX(-50%); }
+  }
+</style>

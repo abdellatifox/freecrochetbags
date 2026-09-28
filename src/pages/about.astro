@@ -1,0 +1,23 @@
+---
+import TextPage from '../components/TextPage.astro';
+import { SITE } from '../lib/site';
+export const prerender = true;
+---
+
+<TextPage title="About" eyebrow="Hello there" description={`Meet ${SITE.author}, the maker behind ${SITE.name}.`}>
+  <p>
+    Hi, I'm {SITE.author}. {SITE.name} started as a notebook of patterns I kept for myself — the calm, repeatable projects
+    I reach for at the end of a long day. Now it's a small library I share with you, completely free.
+  </p>
+  <h2>What you'll find here</h2>
+  <ul>
+    <li>Patterns written in plain language, with every stitch explained.</li>
+    <li>Projects that use easy-to-find yarn and a single hook.</li>
+    <li>Cozy pieces for your home, your wardrobe and the little ones in your life.</li>
+  </ul>
+  <h2>My promise</h2>
+  <p>
+    Every pattern is tested before it's published. If you spot a mistake or get stuck, please
+    <a href="/contact">send me a note</a> — I read every message.
+  </p>
+</TextPage>

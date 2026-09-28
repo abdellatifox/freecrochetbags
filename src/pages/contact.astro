@@ -1,0 +1,40 @@
+---
+import Base from '../layouts/Base.astro';
+
+const sent = Astro.url.searchParams.get('sent');
+---
+
+<Base title="Contact" description="Questions about a pattern? Send a friendly note.">
+  <section class="wrap section">
+    <div class="page">
+      <p class="eyebrow">Say hello</p>
+      <h1>Let's <em>chat</em></h1>
+      <p>Stuck on a row, found a typo, or just want to share your make? I'd love to hear from you.</p>
+
+      {sent === '1' && <p class="notice" role="status">Thank you! Your message has been sent. ♡</p>}
+      {sent === '0' && <p class="notice notice--err" role="alert">Please fill in every field with a valid email.</p>}
+
+      <form action="/api/contact" method="post" class="form">
+        <div class="field">
+          <label for="name">Name</label>
+          <input id="name" name="name" required maxlength="100" autocomplete="name" />
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required maxlength="200" autocomplete="email" />
+        </div>
+        <div class="field">
+          <label for="body">Message</label>
+          <textarea id="body" name="body" required maxlength="5000"></textarea>
+        </div>
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <button class="btn" type="submit">Send message</button>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .page { max-width: 620px; margin-inline: auto; }
+  .form { margin-top: 28px; }
+</style>

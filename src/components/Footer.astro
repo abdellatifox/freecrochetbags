@@ -1,0 +1,28 @@
+---
+import Logo from './Logo.astro';
+import { SITE } from '../lib/site';
+const year = new Date().getFullYear();
+---
+
+<footer class="site-footer">
+  <div class="wrap inner">
+    <Logo />
+    <nav aria-label="Footer">
+      <a href="/about">About</a>
+      <a href="/contact">Contact</a>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/disclaimer">Disclaimer</a>
+    </nav>
+    <p class="copy">© {year} {SITE.name}. All rights reserved.</p>
+  </div>
+</footer>
+
+<style>
+  .site-footer { border-top: 1px solid var(--line); background: var(--surface); margin-top: var(--space-section); }
+  .inner { display: grid; justify-items: center; gap: 18px; padding-block: 44px; text-align: center; }
+  nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 26px; }
+  nav a { color: var(--ink-soft); text-decoration: none; font-weight: 600; font-size: 0.95rem; }
+  nav a:hover { color: var(--accent-strong); }
+  .copy { font-size: 0.75rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0; }
+</style>
