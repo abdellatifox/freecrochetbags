@@ -2,18 +2,10 @@
 interface Props {
   page: number;
   pages: number;
-  base: string; // e.g. "/patterns" or "/category/blankets"
-  q?: string;
+  base: string; // e.g. "/patterns" or "/category/blankets"; page N lives at `${base}/page/N`
 }
-const { page, pages, base, q } = Astro.props;
-
-function href(p: number) {
-  const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  if (p > 1) params.set('page', String(p));
-  const s = params.toString();
-  return s ? `${base}?${s}` : base;
-}
+const { page, pages, base } = Astro.props;
+const href = (p: number) => (p > 1 ? `${base}/page/${p}` : base);
 ---
 
 {

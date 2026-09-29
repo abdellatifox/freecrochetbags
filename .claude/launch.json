@@ -7,6 +7,13 @@
       "runtimeArgs": ["node_modules/astro/astro.js", "dev"],
       "port": 4321,
       "autoPort": true
+    },
+    {
+      "name": "crochet-built",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": ["node_modules/wrangler/bin/wrangler.js", "dev", "--port", "8799", "--local"],
+      "port": 8799,
+      "autoPort": false
     }
   ]
 }

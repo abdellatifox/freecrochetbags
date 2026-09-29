@@ -6,7 +6,10 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "binding": "ASSETS",
-    "directory": "./dist"
+    "directory": "./dist",
+    // Static pages skip the Worker, except these: old /pattern/* URLs and any trailing-slash URL,
+    // which src/worker.ts answers with a single 301 (the asset layer would otherwise send 307s).
+    "run_worker_first": ["/pattern/*", "/*/"]
   },
   "observability": { "enabled": true },
   "workers_dev": true,
@@ -31,6 +34,4 @@
       "id": "fd97bb4310e941aeaf96cd120e5a0efc"
     }
   ]
-
-  // npx wrangler secret put ADMIN_TOKEN   (never commit it)
 }

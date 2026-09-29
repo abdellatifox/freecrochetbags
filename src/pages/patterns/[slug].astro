@@ -2,29 +2,48 @@
 import { renderPattern } from '../../lib/content';
 import Base from '../../layouts/Base.astro';
 import PatternCard from '../../components/PatternCard.astro';
-import { getCategory, SITE } from '../../lib/site';
-import { getPattern, getRelated, formatDate } from '../../lib/db';
+import { SITE } from '../../lib/site';
+import { getPatterns, related as relatedTo, formatDate, type Pattern } from '../../lib/patterns';
+import { coverOrPlaceholder, logoImage, responsive, socialImage } from '../../lib/images';
 
-const { env } = Astro.locals.runtime;
-const pattern = await getPattern(env, Astro.params.slug ?? '');
-if (!pattern) return Astro.rewrite('/404');
+export const prerender = true;
 
-const category = getCategory(pattern.category);
-const related = await getRelated(env, pattern.category, pattern.slug);
-const { html, toc, faqs } = renderPattern(pattern.content);
-const materials = pattern.materials.split('\n').map((m) => m.trim()).filter(Boolean);
+export async function getStaticPaths() {
+  const patterns = await getPatterns(); // drafts are already excluded
+  return patterns.map((pattern) => ({ params: { slug: pattern.slug }, props: { pattern, all: patterns } }));
+}
+
+interface Props {
+  pattern: Pattern;
+  all: Pattern[];
+}
+const { pattern, all } = Astro.props;
+
+const related = relatedTo(all, pattern);
+const { html, toc, faqs } = renderPattern(pattern.body);
+const coverPath = coverOrPlaceholder(pattern.cover);
+const cover = responsive(coverPath);
 const facts = [
   ['Skill level', pattern.difficulty],
-  ['Yarn weight', pattern.yarn_weight],
-  ['Hook size', pattern.hook_size],
-  ['Time', pattern.time_needed],
+  ['Yarn weight', pattern.yarnWeight],
+  ['Hook size', pattern.hook],
+  ['Yardage', pattern.yardage],
+  ['Gauge', pattern.gauge],
+  ['Time', pattern.time],
+  ['Sizes', pattern.sizes.join(', ')],
 ].filter(([, v]) => v);
 
-const base = Astro.site ?? Astro.url;
-const abs = (path: string) => new URL(path, base).href;
-const url = abs(Astro.url.pathname);
-const isoDate = (d: string) => new Date(d.replace(' ', 'T') + 'Z').toISOString();
+const site = Astro.site ?? Astro.url;
+const abs = (path: string) => new URL(path, site).href;
+const url = abs(pattern.url);
+const og = socialImage(coverPath);
+const categoryUrl = `/category/${pattern.category}`;
 
+/*
+ * Article rather than HowTo: Google retired HowTo rich results in 2023, and these pages are
+ * long-form posts (intro, tips, FAQ) around the steps — Article describes them accurately and
+ * still feeds image, dates and author to Search/Discover. BreadcrumbList and FAQPage sit alongside.
+ */
 const jsonLd = {
   '@context': 'https://schema.org',
   '@graph': [
@@ -32,23 +51,29 @@ const jsonLd = {
       '@type': 'Article',
       '@id': `${url}#article`,
       headline: pattern.title,
-      description: pattern.excerpt,
-      image: abs(pattern.image || '/og.svg'),
+      description: pattern.seoDescription ?? pattern.excerpt,
+      image: [{ '@type': 'ImageObject', url: abs(og.src), width: og.width, height: og.height }],
       url,
       mainEntityOfPage: url,
-      datePublished: isoDate(pattern.published_at),
-      dateModified: isoDate(pattern.updated_at),
+      datePublished: pattern.publishDate.toISOString(),
+      dateModified: pattern.modified.toISOString(),
       author: { '@type': 'Person', name: SITE.author, url: abs('/about') },
-      publisher: { '@type': 'Organization', name: SITE.name, logo: { '@type': 'ImageObject', url: abs('/favicon.svg') } },
-      articleSection: category?.name,
-      keywords: ['crochet pattern', 'free crochet pattern', 'crochet for beginners', category?.name.toLowerCase()].filter(Boolean).join(', '),
+      publisher: {
+        '@type': 'Organization',
+        name: SITE.name,
+        url: abs('/'),
+        logo: { '@type': 'ImageObject', url: abs(logoImage().src) },
+      },
+      articleSection: pattern.categoryName,
+      keywords: [...pattern.tags, 'crochet pattern', 'free crochet pattern'].join(', '),
     },
     {
       '@type': 'BreadcrumbList',
       itemListElement: [
         { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
-        { '@type': 'ListItem', position: 2, name: category?.name ?? pattern.category, item: abs(`/category/${pattern.category}`) },
-        { '@type': 'ListItem', position: 3, name: pattern.title, item: url },
+        { '@type': 'ListItem', position: 2, name: 'Patterns', item: abs('/patterns') },
+        { '@type': 'ListItem', position: 3, name: pattern.categoryName, item: abs(categoryUrl) },
+        { '@type': 'ListItem', position: 4, name: pattern.title, item: url },
       ],
     },
     ...(faqs.length
@@ -65,24 +90,38 @@ const jsonLd = {
       : []),
   ],
 };
-
-Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
 ---
 
-<Base title={pattern.title} description={pattern.excerpt} image={pattern.image} jsonLd={jsonLd} ogType="article">
+<Base
+  title={pattern.seoTitle ?? pattern.title}
+  exactTitle={Boolean(pattern.seoTitle)}
+  ogTitle={pattern.title}
+  description={pattern.seoDescription ?? pattern.excerpt}
+  image={coverPath}
+  imageAlt={pattern.title}
+  jsonLd={jsonLd}
+  ogType="article"
+  publishedTime={pattern.publishDate}
+  modifiedTime={pattern.modified}
+  section={pattern.categoryName}
+  tags={pattern.tags}
+>
   <article class="wrap section">
     <nav class="crumbs no-print" aria-label="Breadcrumb">
       <a href="/">Home</a> <span aria-hidden="true">/</span>
-      <a href={`/category/${pattern.category}`}>{category?.name ?? pattern.category}</a>
+      <a href={categoryUrl}>{pattern.categoryName}</a>
       <span aria-hidden="true">/</span> <span aria-current="page">{pattern.title}</span>
     </nav>
 
     <header class="head">
       <div class="head__copy">
-        <span class="pill">{category?.name ?? pattern.category}</span>
+        <a class="pill" href={categoryUrl}>{pattern.categoryName}</a>
         <h1>{pattern.title}</h1>
         <p class="lead">{pattern.excerpt}</p>
-        <p class="date">Published {formatDate(pattern.published_at)} · by {SITE.author}</p>
+        <p class="date">
+          Published <time datetime={pattern.publishDate.toISOString().slice(0, 10)}>{formatDate(pattern.publishDate)}</time>
+          · by {SITE.author}
+        </p>
 
         <dl class="facts">
           {facts.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}
@@ -94,17 +133,43 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
         </div>
       </div>
       <figure class="head__media">
-        <img src={pattern.image || '/images/patterns/placeholder.svg'} alt={pattern.image_alt || pattern.title} width="600" height="750" loading="eager" />
+        <img
+          src={cover.src}
+          srcset={cover.srcset}
+          sizes="(min-width: 1180px) 520px, (min-width: 860px) 42vw, min(420px, 100vw)"
+          alt={pattern.title}
+          width={cover.width ?? 600}
+          height={cover.height ?? 750}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+        />
       </figure>
     </header>
 
     <div class="body">
       <div class="side">
         {
-          materials.length > 0 && (
+          pattern.materials.length > 0 && (
             <aside class="box materials" aria-labelledby="materials-title">
               <h2 id="materials-title">You'll need</h2>
-              <ul>{materials.map((m) => <li>{m}</li>)}</ul>
+              <ul>{pattern.materials.map((m) => <li>{m}</li>)}</ul>
+            </aside>
+          )
+        }
+        {
+          pattern.stitches.length > 0 && (
+            <aside class="box" aria-labelledby="stitches-title">
+              <h2 id="stitches-title">Stitches used</h2>
+              <ul>{pattern.stitches.map((m) => <li>{m}</li>)}</ul>
+            </aside>
+          )
+        }
+        {
+          pattern.colors.length > 0 && (
+            <aside class="box" aria-labelledby="colors-title">
+              <h2 id="colors-title">Colors</h2>
+              <ul>{pattern.colors.map((m) => <li>{m}</li>)}</ul>
             </aside>
           )
         }
@@ -117,7 +182,17 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
           )
         }
       </div>
-      <div class="prose" id="pattern" set:html={html} />
+      <div>
+        <div class="prose" id="pattern" set:html={html} />
+        {
+          pattern.tags.length > 0 && (
+            <p class="tags">
+              <span class="visually-hidden">Tags:</span>
+              {pattern.tags.map((t) => <span class="tag">{t}</span>)}
+            </p>
+          )
+        }
+      </div>
     </div>
   </article>
 
@@ -126,7 +201,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
       <section class="wrap related no-print" aria-labelledby="related-title">
         <p class="squiggle" aria-hidden="true">∿ ∿ ∿</p>
         <h2 id="related-title" class="related__title">
-          More <em>{category?.name.toLowerCase()}</em> to try
+          More <em>{pattern.categoryName.toLowerCase()}</em> to try
         </h2>
         <div class="grid">
           {related.map((p) => (
@@ -150,6 +225,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
     background: var(--surface); border-radius: var(--radius-lg); padding: clamp(24px, 5vw, 56px);
   }
   .head h1 { margin-top: 16px; font-size: clamp(1.9rem, 4vw, 2.7rem); }
+  .pill { text-decoration: none; }
+  .pill:hover { color: var(--bg); opacity: 0.85; }
   .lead { font-size: 1.12rem; }
   .date { font-size: 0.85rem; color: var(--muted); }
   .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin: 24px 0; }
@@ -158,7 +235,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
   .facts dd { margin: 0; font-weight: 700; color: var(--ink); }
   .actions { display: flex; flex-wrap: wrap; gap: 10px; }
   .head__media { margin: 0; }
-  .head__media img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); }
+  .head__media img { width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; border-radius: var(--radius); }
 
   .body { display: grid; grid-template-columns: 280px 1fr; gap: clamp(28px, 5vw, 64px); margin-top: clamp(40px, 6vw, 72px); align-items: start; }
   .side { position: sticky; top: 24px; display: grid; gap: 16px; max-height: calc(100vh - 48px); overflow: auto; }
@@ -171,6 +248,9 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=600');
   .toc a { color: var(--ink-soft); text-decoration: none; }
   .toc a:hover { color: var(--accent-strong); text-decoration: underline; }
   .prose :global(h2), .prose :global(h3) { scroll-margin-top: 24px; }
+  .prose :global(img) { height: auto; border-radius: var(--radius); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; }
+  .tag { padding: 4px 12px; border-radius: 999px; background: var(--surface); font-size: 0.82rem; color: var(--ink-soft); }
 
   .related { padding-top: var(--space-section); border-top: 1px solid var(--line); }
   .related__title { text-align: center; margin-bottom: 40px; }

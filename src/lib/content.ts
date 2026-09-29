@@ -1,4 +1,5 @@
 import { Marked, type Tokens } from 'marked';
+import { responsive } from './images';
 
 export interface TocItem {
   id: string;
@@ -21,6 +22,10 @@ export function slugify(text: string) {
     .replace(/^-|-$/g, '');
 }
 
+function escapeAttr(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 /** Strip markdown formatting so text can go into JSON-LD. */
 function plain(text: string) {
   return text
@@ -41,6 +46,8 @@ export function renderPattern(markdown: string) {
   const used = new Map<string, number>();
 
   const tokens = new Marked().lexer(markdown);
+  // The page title is the only h1, so a leading "# Title" in the body becomes an h2.
+  for (const t of tokens) if (t.type === 'heading' && t.depth === 1) t.depth = 2;
 
   // Pull FAQ pairs straight from the token stream.
   let inFaq = false;
@@ -61,6 +68,19 @@ export function renderPattern(markdown: string) {
 
   const marked = new Marked({
     renderer: {
+      // In-article images (e.g. ContentOps' <slug>-2.jpg): optimised WebP set, lazy, with dimensions.
+      image({ href, title, text }: Tokens.Image) {
+        const img = responsive(href);
+        const attrs = [
+          `src="${escapeAttr(img.src)}"`,
+          img.srcset && `srcset="${escapeAttr(img.srcset)}" sizes="(min-width: 760px) 680px, 100vw"`,
+          `alt="${escapeAttr(text)}"`,
+          img.width && `width="${img.width}" height="${img.height}"`,
+          title && `title="${escapeAttr(title)}"`,
+          'loading="lazy" decoding="async"',
+        ].filter(Boolean);
+        return `<img ${attrs.join(' ')}>`;
+      },
       heading(this: { parser: { parseInline: (t: Tokens.Generic[]) => string } }, { tokens: inline, depth, text }: Tokens.Heading) {
         const inner = this.parser.parseInline(inline);
         if (depth > 3) return `<h${depth}>${inner}</h${depth}>\n`;

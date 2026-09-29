@@ -14,12 +14,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history: sitemap lastmod / dateModified come from each file's last commit
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - run: npm ci
+
+      # Optimised images are regenerated only for new/changed sources; keep them between runs.
+      - uses: actions/cache@v4
+        with:
+          path: |
+            public/_img
+            src/generated
+          key: images-${{ github.run_id }}
+          restore-keys: images-
 
       - run: npm run build
 

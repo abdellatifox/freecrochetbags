@@ -1,0 +1,25 @@
+---
+import PatternListing from '../../../../components/PatternListing.astro';
+import { CATEGORIES } from '../../../../lib/site';
+import { getPatternsIn, pageCount, type Pattern } from '../../../../lib/patterns';
+
+export const prerender = true;
+
+// Page 1 is /category/<slug> itself; this route only builds pages 2..N.
+export async function getStaticPaths() {
+  const paths = await Promise.all(
+    CATEGORIES.map(async (c) => {
+      const patterns = await getPatternsIn(c.slug);
+      return Array.from({ length: pageCount(patterns.length) - 1 }, (_, i) => ({
+        params: { slug: c.slug, page: String(i + 2) },
+        props: { patterns },
+      }));
+    }),
+  );
+  return paths.flat();
+}
+
+const { patterns } = Astro.props as { patterns: Pattern[] };
+---
+
+<PatternListing patterns={patterns} page={Number(Astro.params.page)} category={Astro.params.slug} />

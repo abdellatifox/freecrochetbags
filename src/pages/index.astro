@@ -2,17 +2,45 @@
 import Base from '../layouts/Base.astro';
 import PatternCard from '../components/PatternCard.astro';
 import { CATEGORIES, SITE } from '../lib/site';
-import { listPatterns, getCategoryCounts } from '../lib/db';
+import { getPatterns } from '../lib/patterns';
+import { coverOrPlaceholder, logoImage, responsive } from '../lib/images';
 
-const { env } = Astro.locals.runtime;
-const [feed, counts] = await Promise.all([listPatterns(env, { perPage: 9 }), getCategoryCounts(env)]);
-const heroImages = feed.items.slice(0, 3);
-const subscribed = Astro.url.searchParams.get('subscribed');
+export const prerender = true;
 
-Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+const patterns = await getPatterns();
+const feed = patterns.slice(0, 9);
+const counts = patterns.reduce<Record<string, number>>((acc, p) => ((acc[p.category] = (acc[p.category] ?? 0) + 1), acc), {});
+// Hero collage: featured patterns first, then the newest.
+const heroImages = [...patterns.filter((p) => p.featured), ...patterns.filter((p) => !p.featured)]
+  .slice(0, 3)
+  .map((p) => responsive(coverOrPlaceholder(p.cover)));
+
+const site = Astro.site ?? Astro.url;
+const home = new URL('/', site).href;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': `${home}#website`,
+      url: home,
+      name: SITE.name,
+      description: SITE.description,
+      inLanguage: 'en',
+      publisher: { '@id': `${home}#organization` },
+    },
+    {
+      '@type': 'Organization',
+      '@id': `${home}#organization`,
+      name: SITE.name,
+      url: home,
+      logo: { '@type': 'ImageObject', url: new URL(logoImage().src, site).href },
+    },
+  ],
+};
 ---
 
-<Base>
+<Base jsonLd={jsonLd}>
   <!-- Hero: keeps the reference layout (copy left, photo collage right) -->
   <section class="wrap hero-wrap">
     <div class="hero">
@@ -24,7 +52,7 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
           Pick up your hook and let's make something lovely together.
         </p>
         <dl class="stats">
-          <div><dt>Free patterns</dt><dd>{feed.total}</dd></div>
+          <div><dt>Free patterns</dt><dd>{patterns.length}</dd></div>
           <div><dt>Categories</dt><dd>{CATEGORIES.length}</dd></div>
           <div><dt>Seasons</dt><dd>4</dd></div>
         </dl>
@@ -38,9 +66,18 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
       {
         heroImages.length > 0 && (
           <div class="collage" aria-hidden="true">
-            {heroImages.map((p, i) => (
+            {heroImages.map((img, i) => (
               <figure class={`polaroid polaroid--${i + 1}`}>
-                <img src={p.image} alt="" width="600" height="750" loading="eager" />
+                <img
+                  src={img.src}
+                  srcset={img.srcset}
+                  sizes="(min-width: 900px) 220px, 45vw"
+                  alt=""
+                  width={img.width ?? 600}
+                  height={img.height ?? 750}
+                  fetchpriority={i === 0 ? 'high' : undefined}
+                  decoding="async"
+                />
               </figure>
             ))}
           </div>
@@ -81,21 +118,21 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
     </div>
 
     {
-      feed.items.length > 0 ? (
+      feed.length > 0 ? (
         <div class="grid">
-          {feed.items.map((p, i) => (
-            <PatternCard pattern={p} eager={i < 3} />
+          {feed.map((p) => (
+            <PatternCard pattern={p} />
           ))}
         </div>
       ) : (
-        <p class="empty">No patterns yet — add your first one from the admin page.</p>
+        <p class="empty">New patterns are on their way — check back soon.</p>
       )
     }
 
     {
-      feed.total > feed.items.length && (
+      patterns.length > feed.length && (
         <p class="more">
-          <a class="btn btn--ghost" href="/patterns?page=2">See more patterns</a>
+          <a class="btn btn--ghost" href="/patterns">See all patterns</a>
         </p>
       )
     }
@@ -118,8 +155,8 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
       <div class="newsletter" id="newsletter">
         <h3>New patterns in your inbox</h3>
         <p>One friendly email when something new is ready. No spam, ever.</p>
-        {subscribed === '1' && <p class="notice" role="status">Thank you! You're on the list. ♡</p>}
-        {subscribed === '0' && <p class="notice notice--err" role="alert">Please enter a valid email address.</p>}
+        <p class="notice" role="status" data-notice="subscribed=1" hidden>Thank you! You're on the list. ♡</p>
+        <p class="notice notice--err" role="alert" data-notice="subscribed=0" hidden>Please enter a valid email address.</p>
         <form action="/api/subscribe" method="post">
           <label for="nl-email" class="visually-hidden">Email address</label>
           <input id="nl-email" name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
@@ -130,6 +167,11 @@ Astro.response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
     </div>
   </section>
 </Base>
+
+<script>
+  import { showNotices } from '../lib/notices';
+  showNotices();
+</script>
 
 <style>
   .hero-wrap { padding-top: clamp(20px, 4vw, 44px); }

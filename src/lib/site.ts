@@ -4,11 +4,13 @@ export const SITE = {
   description:
     'A quiet little library of free, beginner-friendly crochet patterns — blankets, beanies, bags and cozy home pieces, written and tested with care.',
   author: 'Sara',
+  /** Pinterest domain verification code (the `content` of p:domain_verify). Empty = tag not rendered. */
+  pinterestVerify: '',
 };
 
 /**
- * The only categories the site accepts. The admin API rejects anything else,
- * so no animal-photography or nudity categories can ever be added.
+ * The site's categories (URL slugs). ContentOps category names are mapped onto
+ * these in src/lib/patterns.ts — see CONTENTOPS_CATEGORY_MAP.
  */
 export const CATEGORIES = [
   { slug: 'blankets', name: 'Blankets', tagline: 'Cozy layers' },
@@ -16,9 +18,11 @@ export const CATEGORIES = [
   { slug: 'scarves', name: 'Scarves & Cowls', tagline: 'Soft & wrappy' },
   { slug: 'bags', name: 'Bags & Totes', tagline: 'Everyday carry' },
   { slug: 'home-decor', name: 'Home Decor', tagline: 'Calm spaces' },
-  { slug: 'baby-items', name: 'Baby Items', tagline: 'Sweet & gentle' },
+  { slug: 'baby-items', name: 'Baby & Kids', tagline: 'Sweet & gentle' },
   { slug: 'clothing', name: 'Clothing', tagline: 'Wearable makes' },
   { slug: 'accessories', name: 'Accessories', tagline: 'Little details' },
+  { slug: 'footwear', name: 'Footwear', tagline: 'Cozy steps' },
+  { slug: 'seasonal', name: 'Seasonal', tagline: 'Holidays & seasons' },
 ] as const;
 
 export type CategorySlug = (typeof CATEGORIES)[number]['slug'];

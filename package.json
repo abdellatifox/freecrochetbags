@@ -4,15 +4,15 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "npm run images && astro dev",
+    "build": "npm run images && astro build",
     "preview": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "db:migrate:local": "wrangler d1 migrations apply freecrochetbags-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply freecrochetbags-db --remote",
-    "db:seed:local": "wrangler d1 execute freecrochetbags-db --local --file=./seed/seed.sql",
-    "db:seed:remote": "wrangler d1 execute freecrochetbags-db --remote --file=./seed/seed.sql",
-    "cf-typegen": "wrangler types"
+    "cf-typegen": "wrangler types",
+    "images": "node scripts/build-images.mjs",
+    "patterns:from-d1": "node scripts/d1-to-md.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.0",
@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260926.1",
+    "sharp": "^0.34.5",
     "typescript": "^5.8.0",
     "wrangler": "^4.30.0"
   },

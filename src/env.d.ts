@@ -1,9 +1,9 @@
 /// <reference types="astro/client" />
 
 interface Env {
+  /** Newsletter subscribers + contact messages. (The legacy `patterns` table is no longer read.) */
   DB: D1Database;
-  CACHE: KVNamespace;
-  ADMIN_TOKEN: string;
+  ASSETS: Fetcher;
 }
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;

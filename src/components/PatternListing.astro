@@ -1,0 +1,220 @@
+---
+/**
+ * Shared body for /patterns, /patterns/page/N, /category/<slug> and /category/<slug>/page/N.
+ * All of these are prerendered; search on /patterns runs in the browser against /search-index.json.
+ */
+import Base from '../layouts/Base.astro';
+import PatternCard from './PatternCard.astro';
+import Pagination from './Pagination.astro';
+import { CATEGORIES, getCategory, SITE } from '../lib/site';
+import { pageCount, pageSlice, type Pattern } from '../lib/patterns';
+
+interface Props {
+  patterns: Pattern[]; // every pattern in this listing (all pages)
+  page: number;
+  category?: string; // category slug, or undefined for "all patterns"
+}
+const { patterns, page, category: categorySlug } = Astro.props;
+const category = categorySlug ? getCategory(categorySlug) : undefined;
+const pages = pageCount(patterns.length);
+const items = pageSlice(patterns, page);
+const base = category ? `/category/${category.slug}` : '/patterns';
+const suffix = page > 1 ? ` – Page ${page}` : '';
+
+const title = category ? `Free ${category.name} Crochet Patterns${suffix}` : `All Free Crochet Patterns${suffix}`;
+const description = category
+  ? `Free, beginner-friendly ${category.name.toLowerCase()} crochet patterns — ${category.tagline.toLowerCase()}.${
+      page > 1 ? ` Page ${page} of ${pages}.` : ''
+    }`
+  : `Browse every free crochet pattern on ${SITE.name}: bags, blankets, clothing, home decor and more.${
+      page > 1 ? ` Page ${page} of ${pages}.` : ''
+    }`;
+
+const site = Astro.site ?? Astro.url;
+const abs = (p: string) => new URL(p, site).href;
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: abs('/') },
+    { '@type': 'ListItem', position: 2, name: 'Patterns', item: abs('/patterns') },
+    ...(category ? [{ '@type': 'ListItem', position: 3, name: category.name, item: abs(base) }] : []),
+  ],
+};
+---
+
+<Base title={title} description={description} jsonLd={jsonLd}>
+  <section class="wrap section">
+    {
+      category && (
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <a href="/">Home</a> <span aria-hidden="true">/</span> <a href="/patterns">Patterns</a>
+          <span aria-hidden="true">/</span> <span aria-current="page">{category.name}</span>
+        </nav>
+      )
+    }
+
+    <div class="section-head">
+      {category ? <span class="pill">{category.name}</span> : <p class="eyebrow">Library</p>}
+      {
+        category ? (
+          <h1 class="title" data-default-title>
+            {category.tagline}, <em>made with care</em>
+            {page > 1 && <span class="visually-hidden"> – page {page}</span>}
+          </h1>
+        ) : (
+          <h1 data-default-title>
+            All free <em>patterns</em>
+            {page > 1 && <span class="visually-hidden"> – page {page}</span>}
+          </h1>
+        )
+      }
+      <p data-count>
+        {patterns.length} free {patterns.length === 1 ? 'pattern' : 'patterns'}{page > 1 && ` · page ${page} of ${pages}`}
+      </p>
+    </div>
+
+    {
+      !category && (
+        <form id="search" class="search" action="/patterns" method="get" role="search">
+          <label for="q" class="visually-hidden">Search patterns</label>
+          <input id="q" name="q" type="search" placeholder="Search beanies, totes, blankets…" maxlength="80" />
+          <button class="btn" type="submit">Search</button>
+        </form>
+      )
+    }
+
+    <ul class="chips" aria-label="Categories">
+      <li><a href="/patterns" class="chip" aria-current={!category ? 'page' : undefined}>All</a></li>
+      {
+        CATEGORIES.map((c) => (
+          <li>
+            <a class="chip" href={`/category/${c.slug}`} aria-current={c.slug === category?.slug ? 'page' : undefined}>
+              {c.name}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div data-listing>
+      {
+        items.length > 0 ? (
+          <div class="grid">
+            {items.map((p, i) => (
+              <PatternCard pattern={p} eager={i < 3} />
+            ))}
+          </div>
+        ) : (
+          <p class="empty">No patterns here yet — check back soon.</p>
+        )
+      }
+      <Pagination page={page} pages={pages} base={base} />
+    </div>
+
+    {!category && <div data-results hidden />}
+  </section>
+</Base>
+
+{
+  !category && (
+    <script>
+      // Client-side search: /patterns?q=… filters a small static index (title, excerpt, category, tags).
+      type Item = { u: string; t: string; e: string; c: string; d: string; k: string; i: string; s?: string; w?: number; h?: number };
+
+      const q = (new URLSearchParams(location.search).get('q') ?? '').trim().slice(0, 80);
+      const results = document.querySelector<HTMLElement>('[data-results]');
+      if (q && results) run(q, results);
+
+      async function run(query: string, box: HTMLElement) {
+        const input = document.querySelector<HTMLInputElement>('#q');
+        if (input) input.value = query;
+        document.title = `Search: ${query}`;
+        const robots = document.createElement('meta');
+        robots.name = 'robots';
+        robots.content = 'noindex';
+        document.head.append(robots);
+
+        const listing = document.querySelector<HTMLElement>('[data-listing]');
+        const heading = document.querySelector<HTMLElement>('[data-default-title]');
+        const count = document.querySelector<HTMLElement>('[data-count]');
+        const chip = document.querySelector('.chip[aria-current="page"]');
+        chip?.removeAttribute('aria-current');
+
+        let index: Item[] = [];
+        try {
+          index = await (await fetch('/search-index.json')).json();
+        } catch {}
+        const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+        const hits = index.filter((it) => {
+          const hay = `${it.t} ${it.e} ${it.c} ${it.k}`.toLowerCase();
+          return words.every((w) => hay.includes(w));
+        });
+
+        if (heading) {
+          heading.textContent = 'Results for ';
+          const em = document.createElement('em');
+          em.textContent = `“${query}”`;
+          heading.append(em);
+        }
+        if (count) count.textContent = `${hits.length} ${hits.length === 1 ? 'pattern' : 'patterns'}`;
+        if (listing) listing.hidden = true;
+        box.hidden = false;
+        box.replaceChildren();
+
+        if (!hits.length) {
+          const p = document.createElement('p');
+          p.className = 'empty';
+          p.textContent = 'Nothing found. Try another word, like “beanie” or “blanket”.';
+          box.append(p);
+          return;
+        }
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        for (const it of hits) grid.append(card(it));
+        box.append(grid);
+      }
+
+      function card(it: Item) {
+        const article = document.createElement('article');
+        article.className = 'card';
+        const a = Object.assign(document.createElement('a'), { href: it.u, className: 'card__link' });
+        const media = Object.assign(document.createElement('div'), { className: 'card__media' });
+        const img = Object.assign(document.createElement('img'), { src: it.i, alt: it.t, loading: 'lazy', decoding: 'async' });
+        if (it.s) {
+          img.srcset = it.s;
+          img.sizes = '(min-width: 1180px) 360px, (min-width: 720px) 30vw, (min-width: 520px) 45vw, 100vw';
+        }
+        if (it.w && it.h) {
+          img.width = it.w;
+          img.height = it.h;
+        }
+        media.append(img);
+        const meta = Object.assign(document.createElement('p'), { className: 'card__meta' });
+        meta.append(Object.assign(document.createElement('span'), { className: 'card__cat', textContent: it.c }), ' · ', it.d);
+        const h = Object.assign(document.createElement('h3'), { className: 'card__title', textContent: it.t });
+        a.append(media, meta, h);
+        article.append(a);
+        return article;
+      }
+    </script>
+  )
+}
+
+<style>
+  .crumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 32px; }
+  .crumbs a { color: var(--muted); }
+  .title { margin-top: 16px; }
+  .search { display: flex; gap: 6px; max-width: 520px; margin: 0 auto 24px; padding: 6px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); }
+  .search input { border: 0; background: transparent; padding: 10px 14px; min-width: 0; flex: 1; }
+  .search input:focus { outline: none; }
+  .search:focus-within { border-color: var(--accent); }
+  .chips { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 0; margin: 0 0 48px; }
+  .chip {
+    display: inline-block; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line);
+    text-decoration: none; color: var(--ink-soft); font-size: 0.9rem; font-weight: 600; background: var(--card);
+  }
+  .chip:hover { border-color: var(--accent); color: var(--ink); }
+  .chip[aria-current='page'] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  :global(.empty) { text-align: center; color: var(--muted); }
+</style>

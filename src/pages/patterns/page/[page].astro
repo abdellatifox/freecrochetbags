@@ -1,0 +1,19 @@
+---
+import PatternListing from '../../../components/PatternListing.astro';
+import { getPatterns, pageCount, type Pattern } from '../../../lib/patterns';
+
+export const prerender = true;
+
+// Page 1 is /patterns itself; this route only builds pages 2..N.
+export async function getStaticPaths() {
+  const patterns = await getPatterns();
+  return Array.from({ length: pageCount(patterns.length) - 1 }, (_, i) => ({
+    params: { page: String(i + 2) },
+    props: { patterns },
+  }));
+}
+
+const { patterns } = Astro.props as { patterns: Pattern[] };
+---
+
+<PatternListing patterns={patterns} page={Number(Astro.params.page)} />

@@ -1,7 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 
-const sent = Astro.url.searchParams.get('sent');
+export const prerender = true;
 ---
 
 <Base title="Contact" description="Questions about a pattern? Send a friendly note.">
@@ -11,8 +11,8 @@ const sent = Astro.url.searchParams.get('sent');
       <h1>Let's <em>chat</em></h1>
       <p>Stuck on a row, found a typo, or just want to share your make? I'd love to hear from you.</p>
 
-      {sent === '1' && <p class="notice" role="status">Thank you! Your message has been sent. ♡</p>}
-      {sent === '0' && <p class="notice notice--err" role="alert">Please fill in every field with a valid email.</p>}
+      <p class="notice" role="status" data-notice="sent=1" hidden>Thank you! Your message has been sent. ♡</p>
+      <p class="notice notice--err" role="alert" data-notice="sent=0" hidden>Please fill in every field with a valid email.</p>
 
       <form action="/api/contact" method="post" class="form">
         <div class="field">
@@ -33,6 +33,11 @@ const sent = Astro.url.searchParams.get('sent');
     </div>
   </section>
 </Base>
+
+<script>
+  import { showNotices } from '../lib/notices';
+  showNotices();
+</script>
 
 <style>
   .page { max-width: 620px; margin-inline: auto; }
