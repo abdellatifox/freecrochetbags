@@ -184,6 +184,32 @@ const jsonLd = {
       </div>
       <div>
         <div class="prose" id="pattern" set:html={html} />
+
+        <!-- HB In Page (In article 300x250) — moved into the text before the 3rd section -->
+        <div class="hb-inarticle" data-hb-inarticle>
+          <span class="hb-label">Advertisement</span>
+          <div id="HB_Footer_Close_hbagency_space_352100">
+            <div id="HB_CLOSE_hbagency_space_352100"></div>
+            <div id="HB_OUTER_hbagency_space_352100">
+              <div id="hbagency_space_352100"></div>
+            </div>
+          </div>
+        </div>
+        <script is:inline>
+          (() => {
+            const slot = document.querySelector('[data-hb-inarticle]');
+            const body = document.getElementById('pattern');
+            if (!slot || !body) return;
+            const h2s = body.querySelectorAll(':scope > h2');
+            const target = h2s[2] || h2s[h2s.length - 1];
+            if (target) body.insertBefore(slot, target);
+            // show the frame only once an ad has filled (no empty gap)
+            const ad = slot.querySelector('#hbagency_space_352100');
+            const check = () => slot.classList.toggle('is-filled', !!ad.querySelector('iframe') && ad.offsetHeight > 10);
+            new MutationObserver(check).observe(ad, { childList: true, subtree: true, attributes: true });
+            setInterval(check, 2000);
+          })();
+        </script>
         {
           pattern.tags.length > 0 && (
             <p class="tags">
@@ -216,6 +242,15 @@ const jsonLd = {
 <script>
   document.getElementById('print-btn')?.addEventListener('click', () => window.print());
 </script>
+
+<style is:global>
+  .hb-inarticle { margin: 0 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; clear: both; }
+  .hb-inarticle .hb-label { display: none; font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted, #888); margin-bottom: 0.4rem; }
+  .hb-inarticle.is-filled { margin: 2.5rem auto; }
+  .hb-inarticle.is-filled .hb-label { display: block; }
+  .hb-inarticle #hbagency_space_352100 { max-width: 100%; overflow: hidden; }
+  @media print { .hb-inarticle { display: none !important; } }
+</style>
 
 <style>
   .crumbs { font-size: 0.85rem; color: var(--muted); margin-bottom: 32px; }
